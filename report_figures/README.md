@@ -1,0 +1,3 @@
+# Report figures
+
+This directory contains original vector graphics for the Mecanum controller report. `chapter_4/fig_4_rmse_pairs.svg` is generated directly from `mecanum_extended_benchmark/results_extended/paired_comparison.csv`. `chapter_1/fig_1_reference_4_trajectories.svg` uses analytic equations in `trajectory.m` for t=0–40 seconds. Figure assets embedded in the DOCX additionally include portrait tracking/error plots numerically replayed in Python from the unchanged MATLAB controller/plant equations and RMSE-validated to the repository CSV (max difference 1.8e-16 m). The authoring environment did not contain MATLAB or Octave; Simulink screenshots are expressly pending.
