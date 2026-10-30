@@ -1,0 +1,6 @@
+function wheel_speed = WheelSpeed_Block(nu,plant)
+% Diagnostic only: 4 wheel rates rad/s, no actuator saturation.
+r = plant(6); a = plant(7) + plant(8);
+Jm = (1/r)*[1,-1,-a;1,1,a;1,1,-a;1,-1,a];
+wheel_speed = Jm*nu;
+end

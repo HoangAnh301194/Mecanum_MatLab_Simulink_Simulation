@@ -1,0 +1,17 @@
+function [tau,I_next] = PID_Block(q,nu,qd,qd_dot,I_prev,ctrl)
+% Exact equivalent of controller_PID.m including integral before output.
+theta = q(3);
+R = [cos(theta),-sin(theta),0;sin(theta),cos(theta),0;0,0,1];
+q_dot = R*nu;
+error = qd-q;
+error(3) = atan2(sin(error(3)),cos(error(3)));
+error_dot = qd_dot-q_dot;
+I_next = I_prev + error*ctrl(27);
+I_next = max(min(I_next,ctrl(21:23)),-ctrl(21:23));
+Kp = diag(ctrl(12:14));
+Ki = diag(ctrl(15:17));
+Kd = diag(ctrl(18:20));
+tau_world = Kp*error + Ki*I_next + Kd*error_dot;
+tau = R'*tau_world;
+tau = max(min(tau,ctrl(24:26)),-ctrl(24:26));
+end

@@ -1,0 +1,10 @@
+function [ep_mbc,ep_pid,yaw_mbc,yaw_pid] = Error_Block(qd,q_mbc,q_pid)
+e_mbc = qd - q_mbc;
+e_pid = qd - q_pid;
+e_mbc(3) = atan2(sin(e_mbc(3)),cos(e_mbc(3)));
+e_pid(3) = atan2(sin(e_pid(3)),cos(e_pid(3)));
+ep_mbc = hypot(e_mbc(1),e_mbc(2));
+ep_pid = hypot(e_pid(1),e_pid(2));
+yaw_mbc = e_mbc(3);
+yaw_pid = e_pid(3);
+end

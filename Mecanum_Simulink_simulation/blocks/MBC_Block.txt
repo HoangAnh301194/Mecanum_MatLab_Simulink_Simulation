@@ -1,0 +1,21 @@
+function tau = MBC_Block(q,nu,qd,qd_dot,qd_ddot,ctrl)
+% Exact equivalent of uploaded controller_MBC.m (simplified MBC).
+% ctrl indices documented in README; output [Fx;Fy;Mz] in BODY frame.
+theta = q(3);
+error = qd-q;
+error(3) = atan2(sin(error(3)),cos(error(3)));
+R = [cos(theta),-sin(theta),0;sin(theta),cos(theta),0;0,0,1];
+Kp = diag(ctrl(6:8));
+Kv = diag(ctrl(9:11));
+qdot_ref = qd_dot + Kp*error;
+nu_d = R'*qdot_ref;
+nu_ddot_ff = R'*qd_ddot;
+e_v = nu_d-nu;
+nu_dot_cmd = nu_ddot_ff + Kv*e_v;
+m = ctrl(1); Iz = ctrl(2);
+M = diag([m;m;Iz]); D = diag(ctrl(3:5));
+w = nu(3);
+C = [0,-m*w,0;m*w,0,0;0,0,0];
+tau = M*nu_dot_cmd + C*nu + D*nu;
+tau = max(min(tau,ctrl(24:26)),-ctrl(24:26));
+end

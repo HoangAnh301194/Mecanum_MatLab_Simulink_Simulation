@@ -1,0 +1,12 @@
+function [q_dot,nu_dot] = Plant_Block(q,nu,tau,plant)
+% Exactly mirrors robot_dynamics.m. No wheel slip or motor model.
+theta = q(3);
+R = [cos(theta),-sin(theta),0;sin(theta),cos(theta),0;0,0,1];
+q_dot = R*nu;
+m = plant(1); Iz = plant(2);
+M = diag([m;m;Iz]);
+D = diag(plant(3:5));
+w = nu(3);
+C = [0,-m*w,0;m*w,0,0;0,0,0];
+nu_dot = M \ (tau - C*nu - D*nu);
+end

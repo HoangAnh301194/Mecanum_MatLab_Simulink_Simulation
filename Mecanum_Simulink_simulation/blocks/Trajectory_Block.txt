@@ -1,0 +1,43 @@
+function [qd,qd_dot,qd_ddot] = Trajectory_Block(t, mode, ctrl)
+% 1=circle, 2=ellipse, 3=figure-eight, 4=lateral sine.
+% Exact analytic formulas from the extended MATLAB benchmark.
+w = ctrl(29);
+Rtraj = ctrl(28);
+if mode == 1
+    x = Rtraj*cos(w*t); y = Rtraj*sin(w*t);
+    vx = -Rtraj*w*sin(w*t); vy = Rtraj*w*cos(w*t);
+    ax = -Rtraj*w*w*cos(w*t); ay = -Rtraj*w*w*sin(w*t);
+    theta = w*t + pi/2; omega = w; alpha = 0;
+elseif mode == 2
+    a = 2; b = 1.2;
+    x = a*cos(w*t); y = b*sin(w*t);
+    vx = -a*w*sin(w*t); vy = b*w*cos(w*t);
+    ax = -a*w*w*cos(w*t); ay = -b*w*w*sin(w*t);
+    jx = a*w*w*w*sin(w*t); jy = -b*w*w*w*cos(w*t);
+    [theta,omega,alpha] = tangent_motion(vx,vy,ax,ay,jx,jy);
+elseif mode == 3
+    a = 2; b = 1.4;
+    x = a*sin(w*t); y = 0.5*b*sin(2*w*t);
+    vx = a*w*cos(w*t); vy = b*w*cos(2*w*t);
+    ax = -a*w*w*sin(w*t); ay = -2*b*w*w*sin(2*w*t);
+    jx = -a*w*w*w*cos(w*t); jy = -4*b*w*w*w*cos(2*w*t);
+    [theta,omega,alpha] = tangent_motion(vx,vy,ax,ay,jx,jy);
+else
+    v = 0.35; A = 0.6; ws = 0.4;
+    x = v*t; y = A*sin(ws*t);
+    vx = v; vy = A*ws*cos(ws*t);
+    ax = 0; ay = -A*ws*ws*sin(ws*t);
+    theta = 0; omega = 0; alpha = 0;
+end
+qd = [x;y;theta];
+qd_dot = [vx;vy;omega];
+qd_ddot = [ax;ay;alpha];
+end
+
+function [theta,omega,alpha] = tangent_motion(vx,vy,ax,ay,jx,jy)
+s2 = vx*vx + vy*vy;
+crossVA = vx*ay - vy*ax;
+theta = atan2(vy,vx);
+omega = crossVA/s2;
+alpha = (vx*jy - vy*jx)/s2 - 2*crossVA*(vx*ax + vy*ay)/(s2*s2);
+end

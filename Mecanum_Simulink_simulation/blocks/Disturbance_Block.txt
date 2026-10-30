@@ -1,0 +1,7 @@
+function d = Disturbance_Block(t,condition)
+% condition=1 nominal, 2 payload, 3 disturbance.
+d = zeros(3,1);
+if (condition == 3) && (t >= 15) && (t <= 20)
+    d = [15;-10;2];
+end
+end
