@@ -124,32 +124,135 @@ writetable(D,fullfile(output_dir,'disturbance_impact.csv'));
 disp('=== MATCHED PAIR COMPARISONS ==='); disp(P);
 disp('=== DISTURBANCE IMPACT vs MATCHED NOMINAL ==='); disp(D);
 
-% Save 2 figures per trajectory, each with 3 operating conditions.
-for it = 1:numel(traj_list)
-    figure('Name',['Paths: ' traj_list{it}],'Color','w');
-    for ic = 1:3
-        R = all_cases{it,ic};
-        subplot(1,3,ic);
-        plot(R.qd(1,:),R.qd(2,:),'k--','LineWidth',1.5); hold on;
-        plot(R.q_mbc(1,:),R.q_mbc(2,:),'b','LineWidth',1.0);
-        plot(R.q_pid(1,:),R.q_pid(2,:),'r','LineWidth',1.0);
-        grid on; axis equal;
-        xlabel('x (m)'); ylabel('y (m)'); title(condition_list{ic},'Interpreter','none');
-        if ic == 1, legend('Reference','MBC','PID','Location','best'); end
-    end
-    saveas(gcf,fullfile(output_dir,['path_' traj_list{it} '.png']));
+% ------------------------------------------------------------
+% ONE PNG PER GRAPH (MATLAB R2022b). All simulation/CSV code above
+% remains unchanged. No subplot: 4 trajectories x 3 conditions.
+% Exports: 12 paths + 12 errors + 12 path zooms (36 PNGs).
+% The older grouped images in results_extended/ are not overwritten.
+% ------------------------------------------------------------
+figure_dir = fullfile(output_dir,'figures_individual');
+if ~exist(figure_dir,'dir'), mkdir(figure_dir); end
+figure_visible = 'off';  % Change to 'on' to show every figure.
+make_zoom = true;        % Additional separate close-up images.
+dpi = 300;
 
-    figure('Name',['Position tracking error: ' traj_list{it}],'Color','w');
-    for ic = 1:3
+ref_color = [0.55 0.55 0.55];
+mbc_color = [0.03 0.34 0.76];
+pid_color = [0.85 0.16 0.13];
+ref_width = 0.65;
+track_width = 0.85;
+count = 0;
+
+for it = 1:numel(traj_list)
+    for ic = 1:numel(condition_list)
         R = all_cases{it,ic};
-        subplot(3,1,ic);
-        plot(R.t,R.ep_mbc,'b',R.t,R.ep_pid,'r','LineWidth',1.0);
-        grid on; ylabel('e_p (m)'); title(condition_list{ic},'Interpreter','none');
-        if ic == 3, xline(15,'k--'); xline(20,'k--'); end
-        if ic == 1, legend('MBC','PID','Location','best'); end
-        if ic == 3, xlabel('Time (s)'); end
+        tag = [traj_list{it} '_' condition_list{ic}];
+
+        % A. Full reference / MBC / PID trajectory.
+        f = figure('Visible',figure_visible,'Color','w', ...
+                   'Units','centimeters','Position',[2 2 17 13]);
+        ax = axes('Parent',f); hold(ax,'on');
+        h_ref = plot(ax,R.qd(1,:),R.qd(2,:),':', ...
+            'Color',ref_color,'LineWidth',ref_width);
+        h_mbc = plot(ax,R.q_mbc(1,:),R.q_mbc(2,:),'-', ...
+            'Color',mbc_color,'LineWidth',track_width);
+        h_pid = plot(ax,R.q_pid(1,:),R.q_pid(2,:),'--', ...
+            'Color',pid_color,'LineWidth',track_width);
+        set(ax,'FontName','Arial','FontSize',11);
+        box(ax,'on'); grid(ax,'on');
+        xlabel(ax,'x (m)'); ylabel(ax,'y (m)');
+        title(ax,['Trajectory: ' tag],'Interpreter','none');
+        legend(ax,[h_ref h_mbc h_pid],{'Reference','MBC','PID'}, ...
+            'Location','southoutside','Orientation','horizontal', ...
+            'Box','off');
+        xx = [R.qd(1,:),R.q_mbc(1,:),R.q_pid(1,:)];
+        yy = [R.qd(2,:),R.q_mbc(2,:),R.q_pid(2,:)];
+        padx = 0.08*max(max(xx)-min(xx),0.1);
+        pady = 0.10*max(max(yy)-min(yy),0.1);
+        xlim(ax,[min(xx)-padx max(xx)+padx]);
+        ylim(ax,[min(yy)-pady max(yy)+pady]);
+        if strcmp(traj_list{it},'lateral_sine')
+            axis(ax,'normal');  % Stretch y to reveal lateral motion.
+        else
+            axis(ax,'equal');
+        end
+        exportgraphics(f,fullfile(figure_dir,['path_' tag '.png']), ...
+            'Resolution',dpi);
+        close(f); count = count+1;
+
+        % B. Position error, separate from the tracking plot.
+        f = figure('Visible',figure_visible,'Color','w', ...
+                   'Units','centimeters','Position',[2 2 17 11]);
+        ax = axes('Parent',f); hold(ax,'on');
+        h_mbc = plot(ax,R.t,R.ep_mbc,'-', ...
+            'Color',mbc_color,'LineWidth',0.9);
+        h_pid = plot(ax,R.t,R.ep_pid,'--', ...
+            'Color',pid_color,'LineWidth',0.9);
+        if ic == 3
+            xline(ax,15,':','Color',[0.5 0.5 0.5]);
+            xline(ax,20,':','Color',[0.5 0.5 0.5]);
+        end
+        set(ax,'FontName','Arial','FontSize',11);
+        box(ax,'on'); grid(ax,'on');
+        xlabel(ax,'Time (s)'); ylabel(ax,'Position error e_p (m)');
+        title(ax,['Position error: ' tag],'Interpreter','none');
+        legend(ax,[h_mbc h_pid],{'MBC','PID'},'Location','northeast');
+        xlim(ax,[R.t(1) R.t(end)]);
+        ylim(ax,[0 max(0.05,1.08*max([R.ep_mbc(:);R.ep_pid(:)]))]);
+        exportgraphics(f,fullfile(figure_dir,['error_' tag '.png']), ...
+            'Resolution',dpi);
+        close(f); count = count+1;
+
+        % C. Optional standalone zoom at maximum PID/MBC separation.
+        % This magnifies differences without altering the full path.
+        if make_zoom
+            sep = hypot(R.q_mbc(1,:)-R.q_pid(1,:), ...
+                        R.q_mbc(2,:)-R.q_pid(2,:));
+            [max_sep,k_peak] = max(sep);
+            sel = abs(R.t-R.t(k_peak)) <= 1.25;
+            if nnz(sel)<2
+                sel = max(1,k_peak-1):min(numel(R.t),k_peak+1);
+            end
+            f = figure('Visible',figure_visible,'Color','w', ...
+                       'Units','centimeters','Position',[2 2 17 13]);
+            ax = axes('Parent',f); hold(ax,'on');
+            h_ref = plot(ax,R.qd(1,sel),R.qd(2,sel),':', ...
+                'Color',ref_color,'LineWidth',ref_width);
+            h_mbc = plot(ax,R.q_mbc(1,sel),R.q_mbc(2,sel),'-', ...
+                'Color',mbc_color,'LineWidth',track_width);
+            h_pid = plot(ax,R.q_pid(1,sel),R.q_pid(2,sel),'--', ...
+                'Color',pid_color,'LineWidth',track_width);
+            plot(ax,R.q_mbc(1,k_peak),R.q_mbc(2,k_peak),'o', ...
+                 'Color',mbc_color,'MarkerSize',5, ...
+                 'HandleVisibility','off');
+            plot(ax,R.q_pid(1,k_peak),R.q_pid(2,k_peak),'s', ...
+                 'Color',pid_color,'MarkerSize',5, ...
+                 'HandleVisibility','off');
+            set(ax,'FontName','Arial','FontSize',11);
+            box(ax,'on'); grid(ax,'on');
+            xlabel(ax,'x (m)'); ylabel(ax,'y (m)');
+            title(ax,sprintf('Zoom: %s | t=%.2f s | gap=%.4f m', ...
+                tag,R.t(k_peak),max_sep),'Interpreter','none');
+            legend(ax,[h_ref h_mbc h_pid],{'Reference','MBC','PID'}, ...
+                'Location','southoutside','Orientation','horizontal', ...
+                'Box','off');
+            xx = [R.qd(1,sel),R.q_mbc(1,sel),R.q_pid(1,sel)];
+            yy = [R.qd(2,sel),R.q_mbc(2,sel),R.q_pid(2,sel)];
+            padx = 0.13*max(max(xx)-min(xx),0.025);
+            pady = 0.13*max(max(yy)-min(yy),0.025);
+            xlim(ax,[min(xx)-padx max(xx)+padx]);
+            ylim(ax,[min(yy)-pady max(yy)+pady]);
+            if strcmp(traj_list{it},'lateral_sine')
+                axis(ax,'normal');
+            else
+                axis(ax,'equal');
+            end
+            exportgraphics(f,fullfile(figure_dir, ...
+                ['path_zoom_' tag '.png']),'Resolution',dpi);
+            close(f); count = count+1;
+        end
     end
-    saveas(gcf,fullfile(output_dir,['error_' traj_list{it} '.png']));
 end
 
-fprintf('\n24 runs completed. CSV + graphs are in: %s\n',output_dir);
+disp(['24 simulation runs completed; CSV in ',output_dir]);
+disp(['Exported ',num2str(count),' separate PNGs to ',figure_dir]);
