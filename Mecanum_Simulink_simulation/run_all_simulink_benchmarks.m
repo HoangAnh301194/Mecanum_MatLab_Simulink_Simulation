@@ -2,6 +2,8 @@ function all_results = run_all_simulink_benchmarks()
 % Run four trajectories x three scenarios = 12 paired comparisons / 24 runs.
 base = fileparts(mfilename('fullpath'));
 addpath(base);
+% Export reference paths and state histories before controller comparisons.
+export_reference_trajectories();
 trajs = {'circle','ellipse','eight','lateral_sine'};
 conds = {'nominal','payload_15kg','disturbance'};
 rows = cell(12,1);k=0;
