@@ -99,6 +99,35 @@ plot(t,R.ep_mbc(:),'b',t,R.ep_pid(:),'r');grid on;
 xlabel('Time (s)');ylabel('Position error (m)');
 legend('MBC','PID','Location','best');title('Tracking error');
 saveas(f,fullfile(out_dir,[stem '_paths_errors.png']));
+
+% Export seven Scope-equivalent plots from the exact logged Simulink data.
+% This is not a screenshot of the Scope GUI; it is a reproducible 300-dpi plot.
+scope_dir = fullfile(out_dir,'scope_png',stem);
+if ~exist(scope_dir,'dir'), mkdir(scope_dir); end
+scopeSeries = {
+    'Scope_X_Tracking',       [qd(:,1),qM(:,1),qP(:,1)], {'Reference','MBC','PID'}, 'x (m)';
+    'Scope_Y_Tracking',       [qd(:,2),qM(:,2),qP(:,2)], {'Reference','MBC','PID'}, 'y (m)';
+    'Scope_Heading_Tracking', [qd(:,3),qM(:,3),qP(:,3)], {'Reference','MBC','PID'}, 'Heading (rad)';
+    'Scope_Position_Error',   [R.ep_mbc(:),R.ep_pid(:)], {'MBC','PID'}, 'Position error (m)';
+    'Scope_Heading_Error',    [R.error_mbc(3,:)',R.error_pid(3,:)'], {'MBC','PID'}, 'Heading error (rad)';
+    'Scope_MBC_Forces',      tauM, {'Fx (N)','Fy (N)','Mz (N m)'}, 'Generalized force / torque';
+    'Scope_PID_Forces',      tauP, {'Fx (N)','Fy (N)','Mz (N m)'}, 'Generalized force / torque'};
+for kScope = 1:size(scopeSeries,1)
+    scopeName = scopeSeries{kScope,1};
+    scopeData = scopeSeries{kScope,2};
+    scopeLabels = scopeSeries{kScope,3};
+    scopeYLabel = scopeSeries{kScope,4};
+    scopeFig = figure('Name',[scopeName ' - ' stem], ...
+        'Visible','off','Color','w','Position',[100 100 1100 580]);
+    plot(t,scopeData,'LineWidth',1.3);
+    grid on; xlabel('Time (s)'); ylabel(scopeYLabel);
+    title([strrep(scopeName,'_',' ') ' | ' stem],'Interpreter','none');
+    legend(scopeLabels,'Location','best','Interpreter','none');
+    print(scopeFig,fullfile(scope_dir,[scopeName '.png']),'-dpng','-r300');
+    close(scopeFig);
+end
+fprintf('Exported %d Scope-equivalent PNGs to %s\\n',size(scopeSeries,1),scope_dir);
+
 end
 
 function [t,A] = getXYZ(S,name,channels)
